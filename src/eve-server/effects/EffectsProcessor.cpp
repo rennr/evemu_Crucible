@@ -592,6 +592,19 @@ void FxProc::ApplyEffects(InventoryItem* pItem, Character* pChar, ShipItem* pShi
 
         // get srcAttr
         EvilNumber srcValue = cur.second.srcRef->GetAttribute(cur.second.srcAttr);
+        /* a source attribute the item does not carry reads 0, which turns a multiply into an erase.  dogma's own
+         *  default is the no-op value for exactly this case -- 1 for the multipliers, 0 for the bonuses -- so use it.
+         *  The Imperial Navy Capacitor Power Relay has no shieldRechargeRateMultiplier (134, default 1) and so
+         *  multiplied the ship's shieldRechargeRate to zero;  CalcRechargeRate then clamped that to 1ms and turned
+         *  it into millions of HP/s of passive regen, leaving the ship unkillable and the client dividing by zero. */
+        if (!cur.second.srcRef->HasAttribute(cur.second.srcAttr)) {
+            /* dgmAttributeTypes.defaultValue, not InventoryItem::GetDefaultAttribute() -- that one reads the item's
+             *  own type, which is exactly what is missing here, and would hand back the same 0 */
+            srcValue = sDataMgr.GetAttributeDefault(cur.second.srcAttr);
+            _log(EFFECTS__WARNING, "FxProc::ApplyEffects(): %s(%u) has no %s(%u);  using the dogma default %.3f.",
+                 cur.second.srcRef->name(), cur.second.srcRef->itemID(), sDataMgr.GetAttrName(cur.second.srcAttr),
+                 cur.second.srcAttr, srcValue.get_float());
+        }
         /*
         // check for inf/nan and then reset?  this will fuck up all previous fx processing on this value.
         if (srcValue.isNaN() or srcValue.isInf()) {

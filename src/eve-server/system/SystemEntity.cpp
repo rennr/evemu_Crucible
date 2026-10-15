@@ -92,8 +92,12 @@ float CalcRechargeRate(float capacity, float current, float rechargeTimeMS)
 {
     // dC/dt = (SQRT(C/Cmax) - C/Cmax) * 2 * Cmax / tau
     // tau = "Cap Recharge Time" / 5.0
-    // prevent divide by zero.
-    rechargeTimeMS = (rechargeTimeMS < 1 ? 1 : rechargeTimeMS);
+    /* a recharge time at or below zero is missing or broken data, not instant recovery.  clamping it to 1ms made
+     *  tau 0.0002s and the rate millions of units a second, which silently erased all incoming damage between ticks
+     *  and left the ship unkillable.  no recharge is the safe reading of no data:  it is visible, and it does not
+     *  pretend the ship is invulnerable. */
+    if (rechargeTimeMS < 1)
+        return 0.0f;
     current = (current < 1 ? 1 : current);
     float Cmax = (capacity < 1 ? 1 : capacity);
     float tau = (rechargeTimeMS / 5000.0f);
