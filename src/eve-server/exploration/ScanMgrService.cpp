@@ -117,8 +117,12 @@ PyResult ScanBound::ConeScan( PyCallArgs& call, PyRep* ignored1, PyRep* ignored2
         codelog(CLIENT__ERROR, "%s: Client has no destiny manager!", m_client->GetName());
         return PyStatic.NewNone();
     } else if (pDestiny->IsWarping()) {
-        call.client->SendNotifyMsg( "You can't scan while warping");
-        return PyStatic.NewNone();
+        /*  ConeScan owes the client a list of results, and refusing with a None put a NoneType
+         *  where the scan window iterates one:  the client's scan service threw and stayed
+         *  broken for the rest of the session, so scanning worked again only after a relog.
+         *  A thrown error is a refusal the client knows how to receive.
+         */
+        throw CustomError ("You can't scan while warping.");
     }
 
     if (m_client->GetShipSE()->SysBubble() == nullptr)
@@ -150,8 +154,11 @@ PyResult ScanBound::RequestScans(PyCallArgs& call, std::optional <PyDict*> probe
         codelog(CLIENT__ERROR, "%s: Client has no destiny manager!", call.client->GetName());
         return PyStatic.NewNone();
     } else if (pDestiny->IsWarping()) {
-        call.client->SendNotifyMsg( "You can't scan while warping");
-        return PyStatic.NewNone();
+        /*  RequestScans returns a None of its own accord, so a refused scan was indistinguish-
+         *  able from one that will answer later, and the probe window waited for results that
+         *  were never coming.  Throw instead.
+         */
+        throw CustomError ("You can't scan while warping.");
     }
 
     if (m_client->GetShipSE()->SysBubble() == nullptr)
