@@ -1674,7 +1674,23 @@ void ActiveModule::ShowEffect(bool active/*false*/, bool abort/*false*/)
         ge.subLoc = PyStatic.NewNone();  //ENV_IDX_OTHER = 4
     }
 
-    timeLeft /= 1000;
+    /*  The client counts the cycle in milliseconds from a real filetime:  a captured
+     *  OnGodmaShipEffect carries duration 9600 with a startTime exactly 9.6 seconds before
+     *  timeNow.  This divided the remaining cycle by 1000 and then placed startTime that many
+     *  *seconds* in the past, so a 9.6s gun reported a 9ms cycle that had finished 9 seconds
+     *  ago.  The client had nothing left to draw and the module button never showed a cycle,
+     *  while the server's own timer -- which is what actually fires the gun -- went on
+     *  working, so the weapon did its damage in silence.
+     *
+     *  duration is the whole cycle and startTime is when this one began, which is the remain-
+     *  der subtracted from it.  The timer has no duration when the module is stopping, and
+     *  then the cycle that is ending is all we know of it.
+     */
+    const int64 perMS(EvE::Time::Second / EvE::Time::mSecond);
+    uint32 cycleMS(m_timer.GetDuration());
+    if (cycleMS < timeLeft)
+        cycleMS = timeLeft;
+
     //def OnGodmaShipEffect(self, itemID, effectID, t, start, active, environment, startTime, duration, repeat, randomSeed, error, actualStopTime = None, stall = True):
     Notify_OnGodmaShipEffect shipEff;
         shipEff.itemID = ge.selfID;
@@ -1683,8 +1699,9 @@ void ActiveModule::ShowEffect(bool active/*false*/, bool abort/*false*/)
         shipEff.start = (active ? 1 : 0);
         shipEff.active = (active ? 1 : 0);
         shipEff.environment = ge.Encode();
-        shipEff.startTime = (abort ? (abortTime / EvE::Time::Second) : shipEff.timeNow - (timeLeft * EvE::Time::Second));
-        shipEff.duration = (abort ? 2000 : timeLeft);  // duration in seconds
+        // abortTime is already a filetime;  dividing it by Second gave the client a timestamp in 1601
+        shipEff.startTime = (abort ? abortTime : shipEff.timeNow - ((int64)(cycleMS - timeLeft) * perMS));
+        shipEff.duration = (abort ? 2000 : cycleMS);   // milliseconds
         shipEff.repeat = m_repeat;
         // results shown as the effect stops (salvagers and data miners:  SalvagingSuccess, LockedContainerOpened...)
         PyTuple* stopMsg(active ? nullptr : TakeStopMessage());
