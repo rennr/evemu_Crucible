@@ -1607,10 +1607,18 @@ void ActiveModule::ShowEffect(bool active/*false*/, bool abort/*false*/)
         }
     }
 
-    // there may be others here like this...this is ONLY for OnSpecialFX data
+    /*  A launcher's *graphic* comes from its charge:  the missile that leaves the tube is drawn
+     *  by the charge's own effect, not by useMissiles.  That substitution belongs to the
+     *  special effect alone, as the comment here always said -- but it was assigning to
+     *  m_effectID, so OnGodmaShipEffect went on to tell the client that the launcher was
+     *  running missileLaunching.  That is the missile's effect and not one the launcher's type
+     *  carries, so the client could not match it to the module and drew no cycle at all:  the
+     *  hardpoint stayed dark while the gun fired.  Keep the swap local to the graphic.
+     */
+    uint16 graphicFxID(m_effectID);
     if ((m_effectID == EVEEffectID::useMissiles) and (m_chargeRef.get() != nullptr))   //operation defined by charge (use charge's default effectID)
-        m_effectID = m_chargeRef->type().GetDefaultEffect();
-    std::string guidStr = sFxDataMgr.GetEffectGuid(m_effectID);
+        graphicFxID = m_chargeRef->type().GetDefaultEffect();
+    std::string guidStr = sFxDataMgr.GetEffectGuid(graphicFxID);
     // the covert ops cloak's guid isn't in the client's effect repository.  it looks like any other cloak
     if (guidStr.compare("effects.CloakingCovertOps") == 0)
         guidStr = "effects.Cloaking";
@@ -1619,7 +1627,7 @@ void ActiveModule::ShowEffect(bool active/*false*/, bool abort/*false*/)
 
     uint16 chgTypeID(((m_chargeRef.get() != nullptr) ? m_chargeRef->typeID() : 0));
     uint32 timeLeft(GetRemainingCycleTimeMS());
-    bool isOffensive(sFxDataMgr.isOffensive(m_effectID));
+    bool isOffensive(sFxDataMgr.isOffensive(graphicFxID));
     PyRep* graphicInfo(nullptr);
     if (groupID() == EVEDB::invGroups::Warp_Disrupt_Field_Generator) {
         if (IsValidTarget(m_targetID) and IsScriptedDisruptor()) {
