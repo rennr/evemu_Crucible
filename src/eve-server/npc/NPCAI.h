@@ -268,6 +268,9 @@ protected:
     void StartWarpOutTimer();
     // maybe follow our last target through warp (<npc><WarpFollowChance>).  true if we went
     bool TryWarpFollow(SystemEntity* pSE);
+    /* a member of a dungeon site (anomaly, mission or incursion bubble).  these have no home leash while they fight --
+     *  the site bounds them, not their spawn point -- and return to the site once the fight is over */
+    bool IsDungeonNPC() const;
     /* the data leash (5.4):  soft past entityMaxWanderRange x LeashSoftScale, hard past x LeashHardScale.  true if we turned back */
     bool CheckLeash(int64 now);
     /* idle out past the leash (the fight ended there:  the target warped off or outran us, a soft leash was cut short):

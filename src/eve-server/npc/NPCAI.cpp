@@ -772,10 +772,21 @@ bool NPCAIMgr::TryWarpFollow(SystemEntity* pSE)
     return true;
 }
 
+bool NPCAIMgr::IsDungeonNPC() const
+{
+    SystemBubble* pBubble(m_npc->SysBubble());
+    return (pBubble != nullptr) and (pBubble->IsAnomaly() or pBubble->IsIncursion() or pBubble->IsMission());
+}
+
 bool NPCAIMgr::CheckLeash(int64 now)
 {
     // law enforcement goes where its target goes.  so do ambient npcs (they travel:  no home)
     if (m_npc->IsLawEnforcer() or (m_ambient != nullptr))
+        return false;
+    /* dungeon npcs have no home either:  the site is their bound, not their spawn point.  they chase a player anywhere
+     *  inside it (era:  frigates land on top of you, the battleships settle at their optimal) and the bubble ends it --
+     *  Attack() drops a target that left, and IdleGoHome() then walks them back to the site */
+    if (IsDungeonNPC())
         return false;
     double distance(m_npc->GetPosition().distance(m_home));
     uint8 leash(NpcMath::LeashState(distance, m_profile->wanderRange, sConfig.npc.LeashSoftScale, sConfig.npc.LeashHardScale,
@@ -794,8 +805,15 @@ bool NPCAIMgr::IdleGoHome()
     if (m_npc->IsLawEnforcer() or (m_ambient != nullptr) or (m_destiny == nullptr) or m_destiny->IsWarping())
         return false;
     double distance(m_npc->GetPosition().distance(m_home));
-    if (NpcMath::LeashState(distance, m_profile->wanderRange, sConfig.npc.LeashSoftScale, sConfig.npc.LeashHardScale,
-                            static_cast<double>(sConfig.npc.LeashRange)) == NpcMath::Leash::None) {
+    /* a dungeon npc chases a player anywhere (CheckLeash lets it), so once the fight ends it can be a long way out.  it
+     *  walks back to its site rather than parking in deep space, and the distance that counts as "out" is its own orbit
+     *  range, not the leash:  the leash is sized by entityMaxWanderRange, a belt-rat bound that is both far too loose for
+     *  a site and missing from the data (so it defaults to 100km, stranding rats the player would have to fly out to) */
+    bool outside(IsDungeonNPC()
+                 ? (distance > std::max(5000.0, static_cast<double>(m_profile->orbitRange)))
+                 : (NpcMath::LeashState(distance, m_profile->wanderRange, sConfig.npc.LeashSoftScale,
+                        sConfig.npc.LeashHardScale, static_cast<double>(sConfig.npc.LeashRange)) != NpcMath::Leash::None));
+    if (!outside) {
         /* back inside:  we may look for targets again.  the goto runs on to the home point (wander waits for it, its Stop()
          *  would leave us at the leash's edge) unless another order replaced it */
         if (m_idleHome and ((distance <= 5000.0) or !m_destiny->IsGoto()))
@@ -1032,7 +1050,7 @@ void NPCAIMgr::SetWander()
     }
 
     // wandering.  nothing to shoot.  look for target.
-    if (pBubble->IsAnomaly() or pBubble->IsIncursion() or pBubble->IsMission()) {
+    if (IsDungeonNPC()) {
         // dungeon npcs hold their position (5.5)
         return;
     } else if (pBubble->IsBelt()) {
