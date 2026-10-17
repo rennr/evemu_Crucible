@@ -802,7 +802,28 @@ bool DBResultRow::GetBool( uint32 index ) const
         return false;
     }
 
-    return (mRow[index][0] != 0);
+    /* mRow is a MYSQL_ROW (char**), and the text protocol hands the two boolean column types over differently:
+     *
+     *    tinyint(1)   as the text "0" or "1", so a false column's first byte is the character '0' (48), not 0.
+     *    bit(1)       as a single raw byte, 0x00 or 0x01 -- no digits in it at all.
+     *
+     *  Testing the first byte against 0 read every tinyint as true -- dunSpawnGroups.warpIn among them, which put
+     *  every dungeon wave 100-150km off grid.  Parsing it as text instead read every true bit column as false,
+     *  because strtol finds no digits in "\x01" -- dgmTypeEffects.isDefault among them, which left a launcher with
+     *  no default effect, so it sent the client effectID 0 and no hardpoint ever showed a cycle.  Both are the
+     *  same column to the caller, so both have to be understood here.
+     *
+     *  A first byte below 0x20 is not text:  it is a bit column's raw value.  Anything else is parsed as a number. */
+    return ParseBool(mRow[index]);
+}
+
+bool DBResultRow::ParseBool( const char* value )
+{
+    if ((value == nullptr) or (value[0] == '\0'))      // NULL, or a bit(1) holding 0 (0x00 ends the string)
+        return false;
+    if ((uint8)value[0] < 0x20)
+        return true;                                    // a raw non-zero byte:  bit(1) holding 1
+    return (strtol(value, nullptr, 0) != 0);
 }
 
 uint32 DBResultRow::GetUInt( uint32 index ) const

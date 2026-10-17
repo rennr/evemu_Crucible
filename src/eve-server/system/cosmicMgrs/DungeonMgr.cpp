@@ -204,8 +204,10 @@ void DungeonDataMgr::Load(uint32 dungeonID)
             group.y = row.GetDouble(8);
             group.z = row.GetDouble(9);
             group.spread = row.GetDouble(10);
-            group.warpIn = row.GetBool(11);
-            group.isOverseer = row.GetBool(12);
+            /* explicit int tests:  warpIn decides whether SpawnDungeonNPC() creates the group 100-150km off grid, so it
+             *  is read here in a way that cannot be undone by a GetBool regression */
+            group.warpIn = (row.GetInt(11) != 0);
+            group.isOverseer = (row.GetInt(12) != 0);
             group.lootGroupID = row.GetUInt(13);
             // column 14 is r.dungeonID.  npc ai phase 2:  aggro mode, range and link (all proactive by default)
             group.aggroMode = row.GetUInt(15);

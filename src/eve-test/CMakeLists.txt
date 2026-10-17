@@ -38,6 +38,7 @@ SET( npcai_SOURCE
      "npcai/NpcMathTest.cpp"
      "npcai/NpcPolishTest.cpp" )
 SET( utils_SOURCE
+     "utils/DbBoolTest.cpp"
      "utils/DogmaOrderTest.cpp"
      "utils/EvilNumberTest.cpp"
      "utils/CustomsRulesTest.cpp"
@@ -112,6 +113,8 @@ ADD_TEST( NAME "MotdTest"
           COMMAND "${TARGET_NAME}" "utils/MotdTest" )
 ADD_TEST( NAME "OutpostRulesTest"
           COMMAND "${TARGET_NAME}" "utils/OutpostRulesTest" )
+ADD_TEST( NAME "DbBoolTest"
+          COMMAND "${TARGET_NAME}" "utils/DbBoolTest" )
 ADD_TEST( NAME "ChargeRulesTest"
           COMMAND "${TARGET_NAME}" "ship/ChargeRulesTest" )
 ADD_TEST( NAME "PropulsionTest"

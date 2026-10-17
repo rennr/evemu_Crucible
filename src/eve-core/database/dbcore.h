@@ -109,6 +109,8 @@ public:
     const char* GetText( uint32 index ) const { return mRow[ index ]; }
     int32 GetInt( uint32 index ) const;
     bool GetBool( uint32 index ) const;
+    // a boolean column's text-protocol value (tinyint(1) as text, bit(1) as a raw byte);  NULL is false
+    static bool ParseBool( const char* value );
     uint32 GetUInt( uint32 index ) const;
     int64 GetInt64( uint32 index ) const;
     float GetFloat( uint32 index ) const;
