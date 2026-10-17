@@ -62,6 +62,7 @@
 #include "services/ServiceManager.h"
 #include "character/Character.h"
 #include "inventory/AttributeEnum.h"
+#include "EVE_Outpost.h"
 
 // the client's const.costCloneContract (AskAcceptCloneContractCost shows it), so not configurable  (F15)
 static constexpr double CloneContractCost = 5600.0;
@@ -106,6 +107,16 @@ void CorpStationMgr::BoundReleased (CorpStationMgrIMBound* bound) {
     this->m_instances.erase (it);
 }
 
+/* the client reads improvement types as their platforms (OutpostRules::PlatformOf).  the static data is loaded once
+ *  (again only if the first load found nothing) */
+static uint16 ImprovementPlatform(uint16 improvementTypeID)
+{
+    static std::map<uint16, uint16> platforms;
+    if (platforms.empty())
+        StationDB::GetImprovementPlatforms(platforms);
+    return OutpostRules::PlatformOf(platforms, improvementTypeID);
+}
+
 PyResult CorpStationMgr::GetImprovementStaticData(PyCallArgs& call)
 {
     _log(CORP__CALL, "CorpStationMgr::Handle_GetImprovementStaticData()");
@@ -126,7 +137,7 @@ PyResult CorpStationMgr::GetImprovementStaticData(PyCallArgs& call)
 
     while (res.GetRow(row)) {
         PyPackedRow* newRow = rowset->NewRow();
-        newRow->SetField("typeID", new PyInt(row.GetInt(0)));
+        newRow->SetField("typeID", new PyInt(ImprovementPlatform(row.GetUInt(0))));
         newRow->SetField("raceID", new PyInt(row.GetInt(1)));
         uint32 asmLine = row.GetInt(2);
         if (asmLine == 0) {
@@ -140,7 +151,7 @@ PyResult CorpStationMgr::GetImprovementStaticData(PyCallArgs& call)
             newRow->SetField("requiredImprovementTypeID", new PyNone());
         }
         else {
-            newRow->SetField("requiredImprovementTypeID", new PyInt(improvement));
+            newRow->SetField("requiredImprovementTypeID", new PyInt(ImprovementPlatform(improvement)));
         }
     }
 
@@ -1007,7 +1018,7 @@ PyResult CorpStationMgrIMBound::GetStationImprovements(PyCallArgs &call)
                 if (row.GetInt(i) == 0)
                     imp[i] = new PyNone();
                 else 
-                    imp[i] = new PyInt(row.GetInt(i));
+                    imp[i] = new PyInt(ImprovementPlatform(row.GetUInt(i)));
 
     dict->SetItemString("improvementTier2aTypeID", imp[0]);
     dict->SetItemString("improvementTier3aTypeID", imp[1]);

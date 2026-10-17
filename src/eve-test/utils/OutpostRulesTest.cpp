@@ -142,6 +142,13 @@ int utils_OutpostRulesTest( int /*argc*/, char* /*argv*/[] )
     Check((cf.count(6) == 0) and (cf[70] == 5), "caldari basic factory:  5 'Factory Tier1' lines");
     Check(ManufacturingLine(Race::Gallente, 3, 2) == 103, "gallente 'Factory1(2) Tier3(2)'");
 
+    // the wire:  the client wants the platform of an improvement, anything unmapped goes as it is
+    std::map<uint16_t, uint16_t> platforms = {{28096, 27937}, {28081, 27662}};
+    Check(PlatformOf(platforms, 28096) == 27937, "caldari basic factory goes as its platform");
+    Check(PlatformOf(platforms, 28081) == 27662, "amarr factory goes as its platform");
+    Check(PlatformOf(platforms, 28100) == 28100, "an unmapped type goes unchanged");
+    Check(PlatformOf(std::map<uint16_t, uint16_t>(), 28096) == 28096, "no map:  unchanged");
+
     ::printf("%s\n", (failures ? "OutpostRulesTest FAILED" : "OutpostRulesTest passed"));
     return failures;
 }

@@ -579,6 +579,30 @@ void StationDB::GetOutpostImprovements(uint32 stationID, DBQueryResult& res)
     "WHERE stationID=%u", stationID);
 }
 
+void StationDB::GetImprovementPlatforms(std::map<uint16, uint16>& into)
+{
+    DBQueryResult res;
+    if (!sDatabase.RunQuery(res,
+        "SELECT dta.typeID, dta.valueInt, dta.valueFloat"
+        " FROM dgmTypeAttributes AS dta"
+        " INNER JOIN invTypes AS t ON t.typeID = dta.typeID"
+        " WHERE dta.attributeID = %u AND t.groupID = %u", AttrStationTypeID, EVEDB::invGroups::Station_Improvement_Platform)) {
+        codelog(DATABASE__ERROR, "Error in GetImprovementPlatforms query: %s", res.error.c_str());
+        return;
+    }
+    DBResultRow row;
+    while (res.GetRow(row)) {
+        // valueInt in this dump, valueFloat if a row has it there;  a row with neither is skipped
+        uint16 improvementID(0);
+        if (!row.IsNull(1))
+            improvementID = (uint16)row.GetUInt(1);
+        else if (!row.IsNull(2))
+            improvementID = (uint16)row.GetDouble(2);
+        if (improvementID != 0)
+            into[improvementID] = (uint16)row.GetUInt(0);
+    }
+}
+
 void StationDB::GetAllOutpostImprovements(DBQueryResult& res)
 {
     if (!sDatabase.RunQuery(res,

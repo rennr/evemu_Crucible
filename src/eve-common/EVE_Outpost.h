@@ -461,6 +461,19 @@ namespace OutpostRules {
     {
         return baseSlots + ExtraSlotsInstalled(race, slots, Kind::Office);
     }
+
+    /* the wire.  the client's station management window takes every type of GetImprovementStaticData and
+     *  GetStationImprovements for an improvement PLATFORM (group 836) and shows its stationTypeID
+     *  (base_stationmanagement.ImprovementTypeResolver:  getattr(godma.GetType(typeID), 'stationTypeID', typeID)).
+     *  an improvement (group 872) has no stationTypeID, so it shows type 0 '#System'.  the server keeps improvements
+     *  (staImprovements, staImprovementsInstalled, these rules) and sends the platform that builds each one.
+     *  platforms:  improvement typeID -> platform typeID (the platforms' stationTypeID, dgmTypeAttributes 472)
+     */
+    inline uint16_t PlatformOf(const std::map<uint16_t, uint16_t>& platforms, uint16_t improvementTypeID)
+    {
+        std::map<uint16_t, uint16_t>::const_iterator itr(platforms.find(improvementTypeID));
+        return (itr == platforms.end() ? improvementTypeID : itr->second);
+    }
 }
 
 
