@@ -12,6 +12,7 @@
 #include "StaticDataMgr.h"
 #include "manufacturing/FactoryDB.h"
 #include "station/StationDataMgr.h"
+#include "station/StationDB.h"
 #include "../eve-common/EVE_Outpost.h"
 #include "../eve-common/EVE_Station.h"
 
@@ -35,7 +36,10 @@ OutpostSE::OutpostSE(StationItemRef station, EVEServiceManager &services, System
 
 // Each outpost has station service entities which are spawned at the same position as the station itself
 void OutpostSE::SpawnStationService(Client* pClient, StationData stData, uint32 serviceType) {
-    ItemData svcData(serviceType, stData.corporationID, stData.systemID, flagNone);
+    /* StationDB::GetStationServiceStates reports a service enabled when its entity has flagStructureActive (the client's
+     *  lobby greys out and labels 'Disabled' every service whose state is not isEnabled).  they were spawned with
+     *  flagNone, so an outpost's services all showed disabled although they worked */
+    ItemData svcData(serviceType, stData.corporationID, stData.systemID, flagStructureActive);
     InventoryItemRef svcRef = sItemFactory.SpawnItem(svcData);
     ItemSystemEntity* svcSE = new ItemSystemEntity(svcRef, pClient->services(), pClient->SystemMgr());
     svcSE->SetPosition(stData.position);
@@ -54,8 +58,16 @@ void OutpostSE::SpawnStationServices(Client* pClient, const StationData& stData,
         {Station::RepairFacilities,     EVEDB::invTypes::RepairService},
         {Station::Laboratory,           EVEDB::invTypes::LaboratoryService}
     };
+    // the services the outpost has an entity for already:  oldMask alone is not enough (it gave one outpost a second
+    //  reprocessing service)
+    std::set<uint32> existing;
+    DBQueryResult res;
+    StationDB::GetStationServiceStates(stData.stationID, res);
+    DBResultRow row;
+    while (res.GetRow(row))
+        existing.insert(row.GetUInt(2));
     for (auto& cur : services)
-        if (((newMask & cur.first) != 0) and ((oldMask & cur.first) == 0))
+        if (((newMask & cur.first) != 0) and ((oldMask & cur.first) == 0) and (existing.count(cur.first) == 0))
             SpawnStationService(pClient, stData, cur.second);
 }
 
