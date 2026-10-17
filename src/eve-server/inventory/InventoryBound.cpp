@@ -463,28 +463,31 @@ PyResult InventoryBound::MultiAdd(PyCallArgs &call, PyList* itemIDs, PyInt* cont
         toFlag = PyRep::IntegerValueU32(call.byname.find("flag")->second);
     toFlag = ResolveAddFlag(toFlag);
 
-    int32 quantity = 1;
-    if (call.byname.find("qty") != call.byname.end())
-        quantity = PyRep::IntegerValue(call.byname.find("qty")->second);
+    /* the client's MultiAdd moves whole stacks unless it names a quantity:  container, hangar, cargo and
+     *  ship-icon drops (container.py _MultiAdd, item.py, cargoview.py, hangar.py) send no qty at all, and
+     *  only clientDogmaLocation's charge loading sends one.  this used to default to 1, so dragging stacks
+     *  into anything but a hangar or the active ship split one unit off each stack and moved only that
+     */
+    int32 quantity = 0;
+    bool moveStack = true;
+    if (call.byname.find("qty") != call.byname.end()) {
+        PyRep* qty(call.byname.find("qty")->second);
+        if ((qty != nullptr) and !qty->IsNone())
+            quantity = PyRep::IntegerValue(qty);
+        if (quantity > 0)
+            moveStack = false;
+    }
 
     //bool byname(fromManyFlags):true == unload charges from module referenced
-    bool moveStack = false;
     if (call.byname.find("fromManyFlags") != call.byname.end())
         if (!call.byname.find("fromManyFlags")->second->IsNone())
             moveStack = true;
 
+    // if client send capy, it is TOTAL space in the destination (the active ship), and the stacks go whole
     float capacity = 0.0f;
     if (call.byname.find("capacity") != call.byname.end())
         capacity = PyRep::IntegerValueU32(call.byname.find("capacity")->second);
-
-    if (capacity > 1) {
-        moveStack = true;
-    } else if (quantity < 1) {
-        moveStack = true;
-    }
-
-    // moving TO hangar...move all items in stack, if applicable...this includes ship corp hangars - is this what we want here?
-    if (IsHangarFlag(toFlag))
+    if (capacity > 1)
         moveStack = true;
 
     if (m_self->IsShipItem() and !moveStack) {
