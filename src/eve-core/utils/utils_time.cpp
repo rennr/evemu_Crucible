@@ -32,9 +32,6 @@
 // boost::gregorian came in through boost/asio.hpp up to about 1.86;  newer boost needs it named
 #include <boost/date_time/gregorian/gregorian_types.hpp>
 
-// Number of days in month in normal year
-static const int daysOfMonth[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-
 static const int64 SECS_BETWEEN_EPOCHS = 11644473600LL;
 static const int64 SECS_TO_100NS = 10000000L; // 10^7
 
@@ -188,98 +185,44 @@ std::string GetMTimeTillNow(double fromTime)
         return sprintf("%0.4fms", elapsed);
 }
 
-EvE::TimeParts GetTimeParts(int64 filetime/*0*/)
+EvE::TimeParts GetTimeParts()
 {
-    /*  The default argument means "now" at both no-argument call sites
-     *   (CalendarDB::CountUpcomingEvents and CalendarMgrService's nowParts), but nothing here
-     *   ever substituted it, so those calls computed from FILETIME 0 -- 11644473600 seconds
-     *   BEFORE the unix epoch.  The day count below then comes out negative and is converted
-     *   to uint16, which is undefined for an out-of-range value.  Where it saturates to 0 the
-     *   month walk breaks on its first compare leaving month at 0, daysOfMonth[month - 1]
-     *   reads one element before the array, and boost::gregorian::date() throws bad_month.
-     *   Nothing catches that, so the server aborts the moment a character select screen is
-     *   drawn.
+    return GetTimeParts((int64)GetFileTimeNow());
+}
+
+EvE::TimeParts GetTimeParts(int64 filetime)
+{
+    /*  boost::gregorian does the calendar.  The hand-rolled year/month walk this replaces took a
+     *   whole year off on Dec 31 (and on Dec 30 of a leap year wrapped a uint16 and ran ~180 years
+     *   on), then read daysOfMonth[-1] and threw bad_month out of the character select screen;  it
+     *   also kept the seconds of the day in a uint16, so the clock went wrong after 18:12:15 UTC.
+     *
+     *  FILETIME counts 100ns intervals from 1601-01-01 UTC.  boost::gregorian only covers 1400-9999,
+     *   so the time is clamped to 1601-01-01 .. 9999-12-31 23:59:59.9999999:  client-sent times
+     *   (calendar events) can be anything, and an out-of-range one must not throw from here.
      */
-    if (filetime <= 0)
-        filetime = (int64)GetFileTimeNow();
+    static const boost::gregorian::date epoch(1601, 1, 1);
+    static const int64 maxFiletime
+            = (int64)((boost::gregorian::date(9999, 12, 31) - epoch).days() + 1) * EvE::Time::Day - 1;
+    if (filetime < 0)
+        filetime = 0;
+    else if (filetime > maxFiletime)
+        filetime = maxFiletime;
 
-    // time sent as (windows)FILETIME; convert to unix time
-    double time(filetime /EvE::Time::Second);// to Seconds
-    time -= SECS_BETWEEN_EPOCHS;    // epoc offset
-
-    // Calculate total days
-    uint16 day = (time / 86400) +1;
-    uint16 seconds = fmod(time, 86400);
-
-    // year loop
-    uint16 year = 1970;
-    while (day >= 365) {
-        if ((year % 400 == 0)
-        or ((year % 4 == 0) and (year % 100 != 0))) {
-            day -= 366;
-        } else {
-            day -= 365;
-        }
-        ++year;
-    }
-
-    bool flag(false);
-    if ((year % 400 == 0)
-    or ((year % 4 == 0) and (year % 100 != 0)))
-        flag = true;
-
-    // Calculating MONTH and DATE
-    uint8 month(0), index(0);
-    if (flag) {
-        while (true) {
-            if (index == 1) {
-                if (day - 29 < 0)
-                    break;
-                ++month;
-                day -= 29;
-            } else {
-                if (day -daysOfMonth[index] < 0)
-                    break;
-                ++month;
-                day -= daysOfMonth[index];
-            }
-            ++index;
-        }
-    } else {
-        while (true) {
-            if (day -daysOfMonth[index] < 0)
-                break;
-            day -= daysOfMonth[index];
-            ++month;
-            ++index;
-        }
-    }
-
-    // Current Month
-    if (day > 0) {
-        ++month;
-    } else {
-        if (month == 2 && flag)
-            day = 29;
-        else {
-            day = daysOfMonth[month - 1];
-        }
-    }
-
-    // use boost to get day of week and week of year
-    boost::gregorian::date d(year, month, day);
+    boost::gregorian::date d(epoch + boost::gregorian::days((long)(filetime / EvE::Time::Day)));
+    int64 ofDay(filetime % EvE::Time::Day);    // 100ns intervals since midnight
 
     EvE::TimeParts data = EvE::TimeParts();
-    data.year   = year;
-    data.month  = month;
-    data.day    = day;
+    data.year   = d.year();
+    data.month  = d.month();
+    data.day    = d.day();
     data.wn     = d.week_number();
-    data.wd     = d.day_of_week();
+    data.wd     = d.day_of_week();      // 0 = Sunday
     data.dy     = d.day_of_year();
-    data.hour   = seconds / 3600;
-    data.min    = fmod(seconds, 3600) / 60;
-    data.sec    = fmod(fmod(seconds, 3600), 60);
-    data.ms     = fmod(time, 1000);
+    data.hour   = ofDay / EvE::Time::Hour;
+    data.min    = (ofDay % EvE::Time::Hour) / EvE::Time::Minute;
+    data.sec    = (ofDay % EvE::Time::Minute) / EvE::Time::Second;
+    data.ms     = (ofDay % EvE::Time::Second) / (EvE::Time::Second / 1000);
 
     return data;
 }

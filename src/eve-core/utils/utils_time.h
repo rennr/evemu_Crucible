@@ -95,8 +95,10 @@ std::string GetMTimeTillNow(double fromTime);
 // Get current date/time, format is YYYY-MM-DD.HH:mm:ss
 const std::string currentDateTime();
 
-// break down given filetime into year, month, day, hour, min, sec, ms
-EvE::TimeParts GetTimeParts(int64 filetime=0);  // also gives day of week, day of year, and week of year
+// break down the current time, or a given filetime (UTC), into year, month, day, hour, min, sec, ms
+//  also gives day of week, day of year, and week of year.  A filetime outside 1601-9999 is clamped
+EvE::TimeParts GetTimeParts();
+EvE::TimeParts GetTimeParts(int64 filetime);
 
 // Get linux filetime from dataTime format YYYY-MM-DDTHH:mm:ssZ (where "T" is a separator and "Z" denotes 'zulo')
 //std::time_t getEpochTime(const std::wstring& dateTime);

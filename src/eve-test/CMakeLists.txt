@@ -46,7 +46,8 @@ SET( utils_SOURCE
      "utils/OutpostRulesTest.cpp"
      "utils/SkillMathTest.cpp"
      "utils/SovRulesTest.cpp"
-     "utils/StructureTimingTest.cpp" )
+     "utils/StructureTimingTest.cpp"
+     "utils/TimePartsTest.cpp" )
 
 ########################
 # Setup the executable #
@@ -112,6 +113,8 @@ ADD_TEST( NAME "MotdTest"
           COMMAND "${TARGET_NAME}" "utils/MotdTest" )
 ADD_TEST( NAME "OutpostRulesTest"
           COMMAND "${TARGET_NAME}" "utils/OutpostRulesTest" )
+ADD_TEST( NAME "TimePartsTest"
+          COMMAND "${TARGET_NAME}" "utils/TimePartsTest" )
 ADD_TEST( NAME "ChargeRulesTest"
           COMMAND "${TARGET_NAME}" "ship/ChargeRulesTest" )
 ADD_TEST( NAME "PropulsionTest"
