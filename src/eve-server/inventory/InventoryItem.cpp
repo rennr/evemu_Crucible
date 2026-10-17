@@ -555,6 +555,13 @@ InventoryItemRef InventoryItem::Spawn(ItemData &data)
                 // Spawn force field item in TEMP_ENTITY_ID range and does NOT save Force_Field to db
                 uint32 itemID = InventoryItem::CreateTempItemID(data);
                 return InventoryItem::SpawnItem(itemID, data);
+            } else if ((iType->groupID() == EVEDB::invGroups::Construction_Platform)
+                   or  (iType->groupID() == EVEDB::invGroups::Station_Upgrade_Platform)
+                   or  (iType->groupID() == EVEDB::invGroups::Station_Improvement_Platform)) {
+                // outpost platforms are StructureItems, as _LoadItem loads them:  spawned (created, split off a
+                //  stack) as a plain CelestialObject they had no inventory for the build materials, so Build
+                //  refused them, and launching one StaticCast it to a StructureItem it was not
+                return StructureItem::Spawn(data);
             } else {
                 // Spawn new Celestial Object
                 return CelestialObject::Spawn(data);

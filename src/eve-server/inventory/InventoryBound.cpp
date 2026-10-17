@@ -1318,11 +1318,13 @@ PyResult InventoryBound::Build(PyCallArgs &call) {
     call.Dump(POS__DUMP);
 
     Client* pClient(call.client);
-    SystemEntity* pSE(pClient->IsInSpace() ? pClient->SystemMgr()->GetEntityByID(m_itemID) : nullptr);
+    // GetSE:  GetEntityByID reads past the end of the map for an id that is not in it
+    SystemEntity* pSE(pClient->IsInSpace() ? pClient->SystemMgr()->GetSE(m_itemID) : nullptr);
     if ((pSE == nullptr) or !pSE->IsPlatformSE() or (m_self->GetMyInventory() == nullptr))
         throw CustomError ("This operation requires an outpost construction platform in space.");
     StructureSE* pPlatform(pSE->GetPOSSE());
-    if (pPlatform->GetState() != EVEPOS::StructureState::Anchored)
+    // the state is Anchored from the start of the anchoring countdown:  wait for it to finish
+    if (!pPlatform->IsFullyAnchored())
         throw CustomError ("The %s must be anchored first.", m_self->name());
     if (m_self->ownerID() != (uint32)pClient->GetCorporationID())
         throw CustomError ("The %s belongs to another corporation.", m_self->name());
