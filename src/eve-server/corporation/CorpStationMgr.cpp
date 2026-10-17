@@ -884,6 +884,8 @@ PyResult CorpStationMgrIMBound::GetStationDetails(PyCallArgs &call, PyInt* stati
         dict->SetItemString("officeRentalCost", new PyInt(row.GetInt(6)));
         dict->SetItemString("reprocessingStationsTake", new PyFloat(row.GetFloat(7)));
         dict->SetItemString("reprocessingHangarFlag", new PyInt(row.GetInt(8)));
+        // base_stationmanagement reads station.ownerID (TransferStation's corp list);  corporationID kept for anything older
+        dict->SetItemString("ownerID", new PyInt(row.GetInt(9)));
         dict->SetItemString("corporationID", new PyInt(row.GetInt(9)));
         dict->SetItemString("maxShipVolumeDockable", new PyInt(row.GetInt(10)));
         dict->SetItemString("exitTime", (row.IsNull(12) ? PyStatic.NewNone() : (PyRep*)new PyInt(row.GetInt(12))));
